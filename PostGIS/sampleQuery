@@ -1,0 +1,5 @@
+# Include below line at the beginning of code to display execution time
+# EXPLAIN ANALYZE
+SELECT id_1, id_2, ST_Distance(geom, ST_GeomFromText('LINESTRING(0 0, 10 10)', 4326)) AS distance
+FROM chickenpox
+LIMIT 5;
