@@ -1,0 +1,26 @@
+import duckdb
+
+con = duckdb.conenct(database='C:/Users/ASUS/PycharmProjects/PythonProject/database.duckdb')
+con.execute("INSTALL spatial")
+con.execute("LOAD spatial")
+
+con.execute("""
+    ALTER TABLE edges ADD COLUMN geom geometry
+""")
+
+# Add LineString into geom column
+con.execute("""
+    UPDATE edges
+    SET geom = ST_GeomFromText(
+        'LINESTRING(' || longitude1 || ' ' || latitude1 || ', ' || longitude2 || ' ' || latitude2 || ')'
+    )
+""")
+
+# check if geom has data
+result = con.execute("""
+    SELECT id1, id2, ST_AsText(geom) AS geom_text
+    FROM edges
+    LIMIT 5
+""").fetchall()
+
+print(result)
