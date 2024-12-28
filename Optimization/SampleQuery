@@ -1,0 +1,41 @@
+import duckdb
+import time
+
+# Connect to the DuckDB database
+con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/new_database.duckdb')
+con.execute("INSTALL spatial")
+con.execute("LOAD spatial")
+
+start_time = time.time()
+
+result = con.execute("""
+    WITH calculated_distances AS (
+        SELECT 
+            id_1, 
+            id_2, 
+            ST_Distance(geom, ST_GeomFromText('LINESTRING(0 0, 10 10)')) AS distance
+        FROM hungary_county_edges
+    )
+    SELECT 
+        id_1, 
+        COUNT(id_2) AS total_connections, 
+        AVG(distance) AS avg_distance, 
+        MAX(distance) AS max_distance
+    FROM 
+        calculated_distances
+    WHERE 
+        distance > 1000 -- Arbitrary filter for more complexity
+    GROUP BY 
+        id_1
+    HAVING 
+        AVG(distance) > 100 -- Another filter on aggregated results
+    ORDER BY 
+        total_connections DESC
+    LIMIT 15;
+""").fetchall()
+
+end_time = time.time()
+
+# Output the results and query execution time
+print(result)
+print("Query execution time: {:.4f} seconds".format(end_time - start_time))
