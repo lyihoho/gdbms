@@ -1,1 +1,11 @@
+import duckdb
 
+con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/database.duckdb')
+con.execute("INSTALL spatial")
+con.execute("LOAD spatial")
+
+con.execute("""
+    CREATE INDEX idx_geom ON edges USING rtree(geom)
+""")
+
+print("Index created.")
