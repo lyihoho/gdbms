@@ -1,35 +1,24 @@
 import duckdb
 import time
 
-# Connect to the DuckDB database
-con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/database.duckdb')
+con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/new_database.duckdb')
 con.execute("INSTALL spatial")
 con.execute("LOAD spatial")
-start_time = time.time()
 
+# Define tile size and bounding box (example for a specific tile)
 tile_min_x, tile_max_x = -152.88, 174.63
 tile_min_y, tile_max_y = -81.92, 76.73
 
-result = con.execute(f"""
-    WITH tile_filtered AS (
+start_time = time.time()
+
+result = con.execute("""
+    WITH calculated_distances AS (
         SELECT 
             id_1, 
             id_2, 
-            geom,
             ST_Distance(geom, ST_GeomFromText('LINESTRING(0 0, 10 10)')) AS distance
-        FROM 
-            edges
-        WHERE 
-            ST_XMin(geom) >= {tile_min_x} AND ST_XMax(geom) <= {tile_max_x}
-            AND ST_YMin(geom) >= {tile_min_y} AND ST_YMax(geom) <= {tile_max_y}
-    ),
-    calculated_distances AS (
-        SELECT 
-            id_1, 
-            id_2, 
-            distance
-        FROM 
-            tile_filtered
+        FROM hungary_county_edges
+        WHERE ST_Intersects(geom, ST_MakeEnvelope(?, ?, ?, ?))  -- Tile-based filtering
     )
     SELECT 
         id_1, 
@@ -38,13 +27,19 @@ result = con.execute(f"""
         MAX(distance) AS max_distance
     FROM 
         calculated_distances
+    WHERE 
+        distance > 1000 
     GROUP BY 
         id_1
+    HAVING 
+        AVG(distance) > 100 
     ORDER BY 
         total_connections DESC
     LIMIT 15;
-""").fetchall()
+""", (tile_min_x, tile_min_y, tile_max_x, tile_max_y)).fetchall()
+
 end_time = time.time()
 
+# Output the results and query execution time
 print(result)
 print("Query execution time: {:.4f} seconds".format(end_time - start_time))
