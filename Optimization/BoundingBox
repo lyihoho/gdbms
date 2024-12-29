@@ -1,0 +1,62 @@
+import duckdb
+import time
+
+# Connect to the DuckDB database
+con = duckdb.connect('databasee.duckdb')
+con.execute("INSTALL spatial")
+con.execute("LOAD spatial")
+
+#Measure execution time
+start_time = time.time()
+
+#used boundary checking calculate the min and max of x and y
+min_x, max_x = -164.036, 166.468
+min_y, max_y = -88.196, 66.165
+
+#ST_MakeEnvelope: Create a bounding box using the given coordinates
+#ST_Intersects: Check if the goemetry overlaps with the bounding box
+#ST_Distance: Calculate the distance between the geometry and a fixed LINESTRING(0 0, 10 10)
+
+result = con.execute(f"""
+    WITH bounding_box AS (
+        SELECT 
+            id_1, 
+            id_2, 
+            geom
+        FROM 
+            edges
+        WHERE 
+            ST_Intersects(geom, ST_MakeEnvelope({min_x}, {min_y}, {max_x}, {max_y}))
+    ),
+    calculated_distances AS (
+        SELECT 
+            id_1, 
+            id_2, 
+            ST_Distance(geom, ST_GeomFromText('LINESTRING(0 0, 10 10)')) AS distance
+        FROM 
+            bounding_box
+    )
+    SELECT 
+        id_1, 
+        COUNT(id_2) AS total_connections, 
+        AVG(distance) AS avg_distance, 
+        MAX(distance) AS max_distance
+    FROM 
+        calculated_distances
+    WHERE 
+        distance > 1000 
+    GROUP BY 
+        id_1
+    HAVING 
+        AVG(distance) > 100
+    ORDER BY 
+        total_connections DESC
+    LIMIT 15;
+
+""").fetchall()
+
+end_time = time.time()
+
+# Output the results and query execution time
+print(result)
+print("Query execution time: {:.4f} seconds".format(end_time - start_time))
