@@ -1,7 +1,0 @@
-ALTER TABLE chickenpox ADD COLUMN geom geometry;
-
-UPDATE chickenpox
-SET geom = ST_MakeLine(
-  ST_SetSRID(ST_MakePoint(longitude1, latitude1), 4326),
-  ST_SetSRID(ST_MakePoint(longitude2, latitude2), 4326)
-);
