@@ -1,0 +1,14 @@
+import duckdb
+
+con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/database.duckdb')
+con.execute("INSTALL spatial")
+con.execute("LOAD spatial")
+
+result = con.execute("""
+    SELECT 
+        MIN(ST_XMin(geom)), MAX(ST_XMax(geom)), 
+        MIN(ST_YMin(geom)), MAX(ST_YMax(geom))
+    FROM 
+        edges;
+""").fetchall()
+print("Data extent:", result)
