@@ -1,7 +1,7 @@
 import duckdb
 import time
 
-con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/new_database.duckdb')
+con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/database.duckdb')
 con.execute("INSTALL spatial")
 con.execute("LOAD spatial")
 
@@ -17,7 +17,7 @@ result = con.execute("""
             id_1, 
             id_2, 
             ST_Distance(geom, ST_GeomFromText('LINESTRING(0 0, 10 10)')) AS distance
-        FROM hungary_county_edges
+        FROM edges
         WHERE ST_Intersects(geom, ST_MakeEnvelope(?, ?, ?, ?))  -- Tile-based filtering
     )
     SELECT 
