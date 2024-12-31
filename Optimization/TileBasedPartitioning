@@ -1,45 +1,55 @@
 import duckdb
 import time
 
+# Connect to the DuckDB database
 con = duckdb.connect(database='C:/Users/ASUS/PycharmProjects/PythonProject/database.duckdb')
 con.execute("INSTALL spatial")
 con.execute("LOAD spatial")
 
-# Define tile size and bounding box (example for a specific tile)
-tile_min_x, tile_max_x = -152.88, 174.63
-tile_min_y, tile_max_y = -81.92, 76.73
+# Create basic tiles
+con.execute("""
+    CREATE TABLE IF NOT EXISTS tiles AS
+    SELECT 
+        tile_id,
+        ST_MakeEnvelope(
+            -180 + (tile_id % 36) * 10,
+            -90 + (tile_id / 36) * 10,
+            -170 + (tile_id % 36) * 10,
+            -80 + (tile_id / 36) * 10
+        ) as tile_geom
+    FROM (SELECT row_number() OVER () - 1 as tile_id FROM range(648)) t;
+""")
 
 start_time = time.time()
 
+# Original query with tile partitioning
 result = con.execute("""
-    WITH calculated_distances AS (
+    WITH edge_tiles AS (
+        SELECT e.*, t.tile_id
+        FROM edges e
+        JOIN tiles t ON ST_Intersects(e.geom, t.tile_geom)
+    ),
+    calculated_distances AS (
         SELECT 
             id_1, 
             id_2, 
             ST_Distance(geom, ST_GeomFromText('LINESTRING(0 0, 10 10)')) AS distance
-        FROM edges
-        WHERE ST_Intersects(geom, ST_MakeEnvelope(?, ?, ?, ?))  -- Tile-based filtering
+        FROM edge_tiles
     )
     SELECT 
         id_1, 
         COUNT(id_2) AS total_connections, 
         AVG(distance) AS avg_distance, 
         MAX(distance) AS max_distance
-    FROM 
-        calculated_distances
-    WHERE 
-        distance > 1000 
-    GROUP BY 
-        id_1
-    HAVING 
-        AVG(distance) > 100 
-    ORDER BY 
-        total_connections DESC
+    FROM calculated_distances
+    WHERE distance > 1000
+    GROUP BY id_1
+    HAVING AVG(distance) > 100
+    ORDER BY total_connections DESC
     LIMIT 15;
-""", (tile_min_x, tile_min_y, tile_max_x, tile_max_y)).fetchall()
+""").fetchall()
 
 end_time = time.time()
 
-# Output the results and query execution time
 print(result)
-print("Query execution time: {:.4f} seconds".format(end_time - start_time))
+print("Query execution time: {:.9f} seconds".format(end_time - start_time))
